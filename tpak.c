@@ -301,7 +301,8 @@ RET:
 }
 
 void print_entry(struct file_list* entry) {
-	printf("File: %s\n, Data offset: 0x%.16lX\n", entry->name, entry->header_end);
+	printf("File: %s\n", entry->name);
+	printf("Data offset: 0x%.16lX\n", entry->header_end);
 	printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
 			entry->filetable[entry->index].chunk_count,
 			entry->filetable[entry->index].chunk_index,
