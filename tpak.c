@@ -378,8 +378,11 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 	Bytef *chunk = NULL;
 	char *out_file = NULL;
 	if(out_dir != NULL) {
-		out_file = malloc(strlen(out_dir) + strlen(entry->name) + 1);
+		out_file = malloc(strlen(out_dir) + strlen(entry->name) + 2);
 		strcpy(out_file, out_dir);
+		if(out_file[strlen(out_dir)-1] != '/') {
+			strcat(out_file, "/");
+		}
 		strcat(out_file, entry->name);
 	} else {
 		out_file = entry->name;
