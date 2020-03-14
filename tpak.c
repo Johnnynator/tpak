@@ -339,15 +339,18 @@ int mkdir_p(char* dir) {
 	return 0;
 }
 
-Bytef* get_chunk(struct file_list * entry, int i) {
+Bytef* get_chunk(struct file_list * entry, int i, Bytef* buffer_opt) {
 	if(i < 0 || i > entry->filetable[entry->index].chunk_count) {
 		return NULL;
 	} else {
+		Bytef * chunk = buffer_opt;
 		int ret = 0;
 		Bytef* src = NULL;
 		int * chunk_index = &entry->filetable[entry->index].chunk_index;
 		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
-		Bytef* chunk = malloc(curr_chunk_entry->uncompressed_size);
+		if( chunk == NULL) {
+			chunk = malloc(curr_chunk_entry->uncompressed_size);
+		}
 		fseek(entry->file, entry->header_end + curr_chunk_entry->data_offset, SEEK_SET);
 		if(curr_chunk_entry->uncompressed_size == curr_chunk_entry->compressed_size) {
 			if (fread(chunk, 1, curr_chunk_entry->compressed_size, entry->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
@@ -359,13 +362,13 @@ Bytef* get_chunk(struct file_list * entry, int i) {
 			if (fread(src, 1, curr_chunk_entry->compressed_size, entry->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
 				fprintf(stderr, "file truncated\n");
 				free(src);
-				free(chunk);
+				if(buffer_opt == NULL) free(chunk);
 				return NULL;;
 			}
 			ret = t_uncompress(src, curr_chunk_entry->compressed_size, (Bytef*)chunk, curr_chunk_entry->uncompressed_size);
 			free(src);
 			if(Z_OK != ret) {
-				free(chunk);
+				if(buffer_opt == NULL) free(chunk);
 				return NULL;
 			}
 		}
@@ -409,7 +412,7 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 	int *chunk_index = &entry->filetable[entry->index].chunk_index;
 	for(int i = 0; i < entry->filetable[entry->index].chunk_count; i++) {
 		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
-		if((chunk = get_chunk(entry, i)) == NULL) {
+		if((chunk = get_chunk(entry, i, NULL)) == NULL) {
 			fclose(out);
 			return -8;
 		}
@@ -422,9 +425,33 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 }
 
 //TODO: extract to memory
-int extract_entry(struct file_list *entry) {
-	printf("%s\n", entry->name);
-	return 0;
+char * extract_entry(struct file_list *entry) {
+	char* ret = malloc(entry->filetable[entry->index].file_size);
+	Bytef * tmp = (Bytef*)ret;
+	fprintf(stderr, "Extracting: %s\n", entry->name);
+	int *chunk_index = &entry->filetable[entry->index].chunk_index;
+	for(int i = 0; i < entry->filetable[entry->index].chunk_count; i++) {
+		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
+		if(get_chunk(entry, i, tmp) == NULL) {
+			free(ret);
+			return NULL;
+		}
+		tmp += curr_chunk_entry->uncompressed_size;
+	}
+	return ret;
+}
+
+struct file_list * find_file(const char * file) {
+	struct file_list * ret;
+	HASH_FIND_STR(file_hh, file, ret);
+	return ret;
+}
+
+char * extract_file(const char * file, int32_t * size) {
+	struct file_list *  entry = find_file(file);
+	if(entry == NULL) {printf("Early failure\n"); return false;}
+	*size = entry->filetable[entry->index].file_size;
+	return extract_entry(entry);
 }
 
 int read_dir(char *path) {
