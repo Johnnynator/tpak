@@ -1,0 +1,2 @@
+option('luajit', type: 'feature',
+	description: 'Compile with LuaJIT to resolve Module/Weapon Strings')
