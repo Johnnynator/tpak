@@ -73,4 +73,5 @@ int main(int argc, char **argv) {
 	} else {
 		extract_dir(indir, outdir);
 	}
+	tpak_free();
 }

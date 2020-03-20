@@ -43,15 +43,22 @@ struct file_chunk_entry {
 };
 
 struct file_list {
-	char *name;
-	FILE *file;
 	int index;
-	struct file_entry *filetable;
-	struct file_chunk_entry *chunktable;
-	long header_end;
+	char *name;
+	struct fd_ll *file;
 	UT_hash_handle hh;
 };
 
+struct fd_ll {
+	struct fd_ll *next;
+	FILE * file;
+	struct file_entry *filetable;
+	struct file_chunk_entry *chunktable;
+	long header_end;
+};
+
+struct fd_ll *fd_ll_first = NULL;
+struct fd_ll *fd_ll_last = NULL;
 struct file_list *file_hh = NULL;
 
 int t_uncompress(Bytef *input, int32_t in_size, Bytef *dest, int32_t dest_size) {
@@ -188,7 +195,7 @@ int readHeader(FILE * file) {
 	}
 	fseek(file, (ftell(file)+3) & ~3, SEEK_SET);
 
-	uint32_t* fileIndex = malloc(sizeof(uint32_t) * file_count);
+	/*uint32_t* fileIndex = malloc(sizeof(uint32_t) * file_count);
 	if (fread(fileIndex, 4, file_count, file) != (long unsigned int)file_count) {
 		fprintf(stderr, "file truncated\n");
 		ret = -3;
@@ -196,7 +203,8 @@ int readHeader(FILE * file) {
 	}
 	if (verbose) for(int i = 0; i < file_count; i++) {
 		fprintf(stderr, "%i\n", fileIndex[i]);
-	}
+	}*/
+	fseek(file, sizeof(uint32_t)*file_count, SEEK_CUR);
 
 	int32_t uncomp_filetable_size = sizeof(struct file_entry) * file_count;
 	int32_t comp_filetable_size = 0;
@@ -274,16 +282,21 @@ int readHeader(FILE * file) {
 	long header_end = ftell(file);
 	fseek(file, 0, SEEK_END);
 	if(verbose) fprintf(stderr, "0x%.16lX\n", ftell(file));
-
+	struct fd_ll *fd_llist = malloc(sizeof(struct fd_ll));
+	if(fd_ll_first == NULL) fd_ll_first = fd_llist;
+	if(fd_ll_last != NULL) fd_ll_last->next = fd_llist;
+	fd_llist->next = NULL;
+	fd_llist->file = file;
+	fd_llist->filetable = (struct file_entry*)filetable;
+	fd_llist->chunktable = chunktable;
+	fd_llist->header_end = header_end;
+	fd_ll_last = fd_llist;
 	struct name_entry * curr_name = (struct name_entry*)nametable;
 	struct file_list * file_list = NULL;
 	for (int j = 0; j < file_count; j++) {
 		file_list = (struct file_list*)malloc(sizeof(*file_list));
 		file_list->name = strdup(&curr_name->name);
-		file_list->file = file;
-		file_list->filetable = (struct file_entry*)filetable;
-		file_list->chunktable = chunktable;
-		file_list->header_end = header_end;
+		file_list->file = fd_llist;
 		file_list->index = j;
 		HASH_ADD_KEYPTR(hh, file_hh, file_list->name, strlen(file_list->name), file_list);
 		Bytef* wtf = (Bytef *) curr_name;
@@ -300,21 +313,42 @@ RET:
 	return ret;
 }
 
+int tpak_free() {
+	struct fd_ll * next_fd_ll = fd_ll_first;
+	while(next_fd_ll != NULL) {
+		struct fd_ll* curr_fd_ll = next_fd_ll;
+		free(curr_fd_ll->chunktable);
+		free(curr_fd_ll->filetable);
+		fclose(curr_fd_ll->file);
+		next_fd_ll = curr_fd_ll->next;
+		free(curr_fd_ll);
+	}
+	fd_ll_first = NULL;
+	fd_ll_last = NULL;
+	struct file_list *entry, *tmp = NULL;
+	HASH_ITER(hh, file_hh, entry, tmp) {
+		HASH_DEL(file_hh, entry);
+		free(entry->name);
+		free(entry);
+	}
+	return 0;
+}
+
 void print_entry(struct file_list* entry) {
 	printf("File: %s\n", entry->name);
-	printf("Data offset: 0x%.16lX\n", entry->header_end);
+	printf("Data offset: 0x%.16lX\n", entry->file->header_end);
 	printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
-			entry->filetable[entry->index].chunk_count,
-			entry->filetable[entry->index].chunk_index,
-			entry->filetable[entry->index].file_size,
-			entry->filetable[entry->index].name_offset);
-	int * chunk_index = &entry->filetable[entry->index].chunk_index;
-	for( int i = 0; i < entry->filetable[entry->index].chunk_count; i++) {
+			entry->file->filetable[entry->index].chunk_count,
+			entry->file->filetable[entry->index].chunk_index,
+			entry->file->filetable[entry->index].file_size,
+			entry->file->filetable[entry->index].name_offset);
+	int * chunk_index = &entry->file->filetable[entry->index].chunk_index;
+	for( int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
 		fprintf(stdout, "Comp: 0x%.8X, Uncomp: 0x%.8X, Data: 0x%.8X, Unkwn: 0x%.8X\n",
-                                entry->chunktable[*chunk_index + i].compressed_size,
-                                entry->chunktable[*chunk_index + i].uncompressed_size,
-                                entry->chunktable[*chunk_index + i].data_offset,
-                                entry->chunktable[*chunk_index + i].unkwn);
+                                entry->file->chunktable[*chunk_index + i].compressed_size,
+                                entry->file->chunktable[*chunk_index + i].uncompressed_size,
+                                entry->file->chunktable[*chunk_index + i].data_offset,
+                                entry->file->chunktable[*chunk_index + i].unkwn);
 	}
 }
 
@@ -340,26 +374,26 @@ int mkdir_p(char* dir) {
 }
 
 Bytef* get_chunk(struct file_list * entry, int i, Bytef* buffer_opt) {
-	if(i < 0 || i > entry->filetable[entry->index].chunk_count) {
+	if(i < 0 || i > entry->file->filetable[entry->index].chunk_count) {
 		return NULL;
 	} else {
 		Bytef * chunk = buffer_opt;
 		int ret = 0;
 		Bytef* src = NULL;
-		int * chunk_index = &entry->filetable[entry->index].chunk_index;
-		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
+		int * chunk_index = &entry->file->filetable[entry->index].chunk_index;
+		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
 		if( chunk == NULL) {
 			chunk = malloc(curr_chunk_entry->uncompressed_size);
 		}
-		fseek(entry->file, entry->header_end + curr_chunk_entry->data_offset, SEEK_SET);
+		fseek(entry->file->file, entry->file->header_end + curr_chunk_entry->data_offset, SEEK_SET);
 		if(curr_chunk_entry->uncompressed_size == curr_chunk_entry->compressed_size) {
-			if (fread(chunk, 1, curr_chunk_entry->compressed_size, entry->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
+			if (fread(chunk, 1, curr_chunk_entry->compressed_size, entry->file->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
 				fprintf(stderr, "file truncated\n");
 				return NULL;
 			}
 		} else {
 			src = malloc(curr_chunk_entry->compressed_size);
-			if (fread(src, 1, curr_chunk_entry->compressed_size, entry->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
+			if (fread(src, 1, curr_chunk_entry->compressed_size, entry->file->file) != (long unsigned int)curr_chunk_entry->compressed_size) {
 				fprintf(stderr, "file truncated\n");
 				free(src);
 				if(buffer_opt == NULL) free(chunk);
@@ -409,9 +443,9 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 	}
 	free(out_file);
 	free(out_cp);
-	int *chunk_index = &entry->filetable[entry->index].chunk_index;
-	for(int i = 0; i < entry->filetable[entry->index].chunk_count; i++) {
-		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
+	int *chunk_index = &entry->file->filetable[entry->index].chunk_index;
+	for(int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
+		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
 		if((chunk = get_chunk(entry, i, NULL)) == NULL) {
 			fclose(out);
 			return -8;
@@ -426,12 +460,12 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 
 //TODO: extract to memory
 char * extract_entry(struct file_list *entry) {
-	char* ret = malloc(entry->filetable[entry->index].file_size);
+	char* ret = malloc(entry->file->filetable[entry->index].file_size);
 	Bytef * tmp = (Bytef*)ret;
 	fprintf(stderr, "Extracting: %s\n", entry->name);
-	int *chunk_index = &entry->filetable[entry->index].chunk_index;
-	for(int i = 0; i < entry->filetable[entry->index].chunk_count; i++) {
-		struct file_chunk_entry * curr_chunk_entry = &entry->chunktable[*chunk_index + i];
+	int *chunk_index = &entry->file->filetable[entry->index].chunk_index;
+	for(int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
+		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
 		if(get_chunk(entry, i, tmp) == NULL) {
 			free(ret);
 			return NULL;
@@ -450,7 +484,7 @@ struct file_list * find_file(const char * file) {
 char * extract_file(const char * file, int32_t * size) {
 	struct file_list *  entry = find_file(file);
 	if(entry == NULL) {printf("Early failure\n"); return false;}
-	*size = entry->filetable[entry->index].file_size;
+	*size = entry->file->filetable[entry->index].file_size;
 	return extract_entry(entry);
 }
 
