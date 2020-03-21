@@ -8,7 +8,7 @@ Tool to extract tpak archive format (only version 7 so far)
 ### Download ci artifacts
 
 You can download one of the CI Artifacts.
-To do that go to [CI](https://github.com/Johnnynator/symmetrical-fiesta/actions?query=workflow%3ACI) and choose one of the runs.
+To do that go to [CI](https://github.com/Johnnynator/tpak/actions?query=workflow%3ACI) and choose one of the runs.
 
 ### From Source
 Dependencies: `meson, ninja, zlib (optional)`, C compiler (+ libc that implements some POSIX C (E.g. MinGW on Windows))
