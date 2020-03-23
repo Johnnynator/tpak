@@ -16,6 +16,7 @@ jobs:
     - uses: actions/setup-python@v1
     - uses: BSFishy/meson-build@v1.0.1
       with:
+        setup-options: --wrap-mode=forcefallback
         action: build
     - name: Move artifacts
       shell: bash
