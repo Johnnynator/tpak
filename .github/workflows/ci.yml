@@ -24,9 +24,9 @@ jobs:
         mkdir -p artifacts
         if [ "${{ matrix.os }}" = "windows-latest" ]; then
           cp build/tpak.exe artifacts
+          cp build/*.dll artifacts
         else
           cp build/tpak artifacts
-          cp build/*.dll artifacts
         fi
     - uses: actions/upload-artifact@v1.0.0
       with:
