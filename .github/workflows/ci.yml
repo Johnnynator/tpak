@@ -26,6 +26,7 @@ jobs:
           cp build/tpak.exe artifacts
         else
           cp build/tpak artifacts
+          cp build/*.dll artifacts
         fi
     - uses: actions/upload-artifact@v1.0.0
       with:
