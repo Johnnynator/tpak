@@ -21,7 +21,7 @@ char *guess_path() {
 	return ret;
 }
 
-void usage(char* argv0) {
+void usage(char* argv0, int ret) {
 	fprintf(stdout,
 		"Usage: %s [OPTIONS]\n\n"
 		"OPTIONS\n"
@@ -30,7 +30,7 @@ void usage(char* argv0) {
 		" -l  --list       Only list files, do no extract anything\n"
 		" -v  --verbose    Enable verbose output\n"
 		" -h  --help       Print help\n", basename(argv0));
-	exit(EXIT_SUCCESS);
+	exit(ret);
 }
 
 int main(int argc, char **argv) {
@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 	int c;
 	char *indir = NULL;
 	char *outdir = NULL;
-	const char * options = "ivolh";
+	const char * options = ":i:vo:lh";
 	const struct option longoptions[] = {
 		{ "in", required_argument, NULL, 'i' },
 		{ "out", required_argument, NULL, 'o' },
@@ -55,13 +55,16 @@ int main(int argc, char **argv) {
 				outdir = optarg;
 				break;
 			case 'h':
-				usage(argv[0]);
+				usage(argv[0], EXIT_SUCCESS);
 				break;
 			case 'v':
 				verbose = true;
 				break;
 			case 'l':
 				list = true;
+				break;
+			default:
+				usage(argv[0], EXIT_FAILURE);
 				break;
 		}
 	}
