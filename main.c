@@ -12,10 +12,12 @@ extern bool verbose;
 // right now not really guessing, just a single hardcoed path
 char *guess_path() {
 	char *path = "/.local/share/Steam/steamapps/common/star conflict/data/";
-	char *home = getenv("HOME");
+	char *home = NULL;
+	if ((home = getenv("HOME")) == NULL)
+		return NULL;
 	char *ret = malloc(strlen(path) + strlen(home) + 1);
 	strcpy(ret, home);
-	strcat(ret, "/.local/share/Steam/steamapps/common/star conflict/data/");
+	strcat(ret, path);
 	return ret;
 }
 
@@ -65,7 +67,10 @@ int main(int argc, char **argv) {
 	}
 	if(indir == NULL) {
 		// not freed anywhere so far
-		indir = guess_path();
+		if((indir = guess_path()) == NULL) {
+			fprintf(stderr, "Cannon guess data path, please manual provide one with --in/-i <path>\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 	if(list) {
 		read_dir(indir);
