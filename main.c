@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
 		read_dir(indir);
 		print_all();
 	} else {
-		extract_dir(indir, outdir);
+		extract_dir(indir, outdir, true);
 	}
 	tpak_free();
 }

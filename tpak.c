@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <zlib.h>
 
+#include "tpak.h"
 
 #if defined(_Win32) || defined(__MINGW32__)
 #define mkdir(a,b) mkdir(a)
@@ -483,7 +484,7 @@ struct file_list * find_file(const char * file) {
 
 char * extract_file(const char * file, int32_t * size) {
 	struct file_list *  entry = find_file(file);
-	if(entry == NULL) {printf("Early failure\n"); return false;}
+	if(entry == NULL) {printf("Early failure\n"); return NULL;}
 	*size = entry->file->filetable[entry->index].file_size;
 	return extract_entry(entry);
 }
@@ -507,11 +508,13 @@ int read_dir(char *path) {
 	return 0;
 }
 
-int extract_dir(char *path, char *out) {
+int extract_dir(char *path, char *out, bool allow_failure) {
 	read_dir(path);
 	struct file_list *entry, *tmp = NULL;
 	HASH_ITER(hh, file_hh, entry, tmp) {
-		extract_to_file(entry, out);
+		if((extract_to_file(entry, out) != 0) && !allow_failure) {
+				return -1;
+		}
 	}
 	return 0;
 }
