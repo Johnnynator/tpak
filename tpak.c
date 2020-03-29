@@ -491,21 +491,31 @@ char * extract_file(const char * file, int32_t * size) {
 
 int read_dir(char *path) {
 	DIR * dir;
+	FILE * t_fp;
 	struct dirent * dire;
 	char file[2048];
+	int ret = 0;
 	dir = opendir(path);
 	if ( dir != NULL ) {
 		while((dire = readdir(dir))) {
 			if(strcmp(dire->d_name + strlen(dire->d_name) - 4, ".pak") == 0) {
 				strcpy(file, path);
+				if(file[strlen(file)-1] != '/') {
+					strcat(file, "/");
+				}
 				strcat(file, dire->d_name);
 				//puts (file);
+				if((t_fp = fopen(file, "rb")) == NULL) {
+					fprintf(stderr, "%s: %s\n", file, strerror(errno));
+					ret = -1;
+					continue;
+				}
 				readHeader(fopen(file, "rb"));
 			}
 		}
 		closedir(dir);
 	}
-	return 0;
+	return ret;
 }
 
 int extract_dir(char *path, char *out, bool allow_failure) {
