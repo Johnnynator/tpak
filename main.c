@@ -26,7 +26,7 @@ void usage(char* argv0, int ret) {
 		"Usage: %s [OPTIONS]\n\n"
 		"OPTIONS\n"
 		" -i  --in <dir>  Path to game dir (default to Steam installation in ~/.local/share\n"
-		" -o  --out <dir>  Path to outpit dir (default to ./\n"
+		" -o  --out <dir>  Path to outpit dir (default to ./)\n"
 		" -l  --list       Only list files, do no extract anything\n"
 		" -v  --verbose    Enable verbose output\n"
 		" -h  --help       Print help\n", basename(argv0));
