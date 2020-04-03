@@ -336,7 +336,9 @@ int tpak_free() {
 }
 
 void print_entry(struct file_list* entry) {
-	printf("File: %s\n", entry->name);
+	if(verbose)
+		printf("File: ");
+	printf("%s\n", entry->name);
 	if(verbose) {
 		printf("Data offset: 0x%.16lX\n", entry->file->header_end);
 		printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
