@@ -523,7 +523,7 @@ int read_dir(const char *path) {
 					ret = -1;
 					continue;
 				}
-				readHeader(fopen(file, "rb"));
+				readHeader(t_fp);
 			}
 		}
 		closedir(dir);
