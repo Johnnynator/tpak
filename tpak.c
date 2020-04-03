@@ -337,19 +337,21 @@ int tpak_free() {
 
 void print_entry(struct file_list* entry) {
 	printf("File: %s\n", entry->name);
-	printf("Data offset: 0x%.16lX\n", entry->file->header_end);
-	printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
-			entry->file->filetable[entry->index].chunk_count,
-			entry->file->filetable[entry->index].chunk_index,
-			entry->file->filetable[entry->index].file_size,
-			entry->file->filetable[entry->index].name_offset);
-	int * chunk_index = &entry->file->filetable[entry->index].chunk_index;
-	for( int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
-		fprintf(stdout, "Comp: 0x%.8X, Uncomp: 0x%.8X, Data: 0x%.8X, Unkwn: 0x%.8X\n",
-                                entry->file->chunktable[*chunk_index + i].compressed_size,
-                                entry->file->chunktable[*chunk_index + i].uncompressed_size,
-                                entry->file->chunktable[*chunk_index + i].data_offset,
-                                entry->file->chunktable[*chunk_index + i].unkwn);
+	if(verbose) {
+		printf("Data offset: 0x%.16lX\n", entry->file->header_end);
+		printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
+				entry->file->filetable[entry->index].chunk_count,
+				entry->file->filetable[entry->index].chunk_index,
+				entry->file->filetable[entry->index].file_size,
+				entry->file->filetable[entry->index].name_offset);
+		int * chunk_index = &entry->file->filetable[entry->index].chunk_index;
+		for( int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
+			fprintf(stdout, "Comp: 0x%.8X, Uncomp: 0x%.8X, Data: 0x%.8X, Unkwn: 0x%.8X\n",
+		                        entry->file->chunktable[*chunk_index + i].compressed_size,
+		                        entry->file->chunktable[*chunk_index + i].uncompressed_size,
+		                        entry->file->chunktable[*chunk_index + i].data_offset,
+		                        entry->file->chunktable[*chunk_index + i].unkwn);
+		}
 	}
 }
 
