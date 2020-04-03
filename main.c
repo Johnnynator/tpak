@@ -36,12 +36,14 @@ void usage(char* argv0, int ret) {
 int main(int argc, char **argv) {
 	bool list = false;
 	int c;
-	char *indir = NULL;
+	char *input = NULL;
 	char *outdir = NULL;
-	const char * options = ":i:vo:lh";
+	char *file = NULL;
+	const char * options = ":i:vo:lhf:";
 	const struct option longoptions[] = {
 		{ "in", required_argument, NULL, 'i' },
 		{ "out", required_argument, NULL, 'o' },
+		{ "file", required_argument, NULL, 'f' },
 		{ "list", no_argument, NULL, 'l' },
 		{ "verbose", no_argument, NULL, 'v'},
 		{ "help", no_argument, NULL, 'h' }
@@ -49,10 +51,13 @@ int main(int argc, char **argv) {
 	while((c = getopt_long(argc, argv, options, longoptions, NULL)) != -1) {
 		switch(c) {
 			case 'i':
-				indir = optarg;
+				input = optarg;
 				break;
 			case 'o':
 				outdir = optarg;
+				break;
+			case 'f':
+				file = optarg;
 				break;
 			case 'h':
 				usage(argv[0], EXIT_SUCCESS);
@@ -68,18 +73,21 @@ int main(int argc, char **argv) {
 				break;
 		}
 	}
-	if(indir == NULL) {
+	if(input == NULL) {
 		// not freed anywhere so far
-		if((indir = guess_path()) == NULL) {
+		if((input = guess_path()) == NULL) {
 			fprintf(stderr, "Cannon guess data path, please manual provide one with --in/-i <path>\n");
 			exit(EXIT_FAILURE);
 		}
 	}
-	if(list) {
-		read_dir(indir);
+	if(file != NULL) {
+		read_input(input);
+		print_file(file);
+	} else if(list) {
+		read_input(input);
 		print_all();
 	} else {
-		extract_dir(indir, outdir, true);
+		extract_all(input, outdir, true);
 	}
 	tpak_free();
 }

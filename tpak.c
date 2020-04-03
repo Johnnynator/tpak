@@ -412,8 +412,23 @@ Bytef* get_chunk(struct file_list * entry, int i, Bytef* buffer_opt) {
 	}
 }
 
-int extract_to_file(struct file_list *entry, char *out_dir) {
+int extract_to_file(struct file_list *entry ,FILE* out) {
 	Bytef *chunk = NULL;
+	int *chunk_index = &entry->file->filetable[entry->index].chunk_index;
+	for(int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
+		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
+		if((chunk = get_chunk(entry, i, NULL)) == NULL) {
+			fclose(out);
+			return -8;
+		}
+		//TODO: What is faster? Writing chunk by chunk or complete file at once
+		fwrite(chunk, 1, curr_chunk_entry->uncompressed_size, out);
+		free(chunk);
+	}
+	return 0;
+}
+
+int extract_to_dir(struct file_list *entry, const char *out_dir) {
 	char *out_file = NULL;
 	if(out_dir != NULL) {
 		out_file = malloc(strlen(out_dir) + strlen(entry->name) + 2);
@@ -444,17 +459,7 @@ int extract_to_file(struct file_list *entry, char *out_dir) {
 	}
 	free(out_file);
 	free(out_cp);
-	int *chunk_index = &entry->file->filetable[entry->index].chunk_index;
-	for(int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
-		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
-		if((chunk = get_chunk(entry, i, NULL)) == NULL) {
-			fclose(out);
-			return -8;
-		}
-		//TODO: What is faster? Writing chunk by chunk or complete file at once
-		fwrite(chunk, 1, curr_chunk_entry->uncompressed_size, out);
-		free(chunk);
-	}
+	extract_to_file(entry, out);
 	fclose(out);
 	return 0;
 }
@@ -484,12 +489,18 @@ struct file_list * find_file(const char * file) {
 
 char * extract_file(const char * file, int32_t * size) {
 	struct file_list *  entry = find_file(file);
-	if(entry == NULL) {printf("Early failure\n"); return NULL;}
+	if(entry == NULL) {printf("Entry %s not found\n", file); return NULL;}
 	*size = entry->file->filetable[entry->index].file_size;
 	return extract_entry(entry);
 }
 
-int read_dir(char *path) {
+int print_file(const char * file) {
+	struct file_list *  entry = find_file(file);
+	if(entry == NULL) {printf("Entry %s not found\n", file); return -1;}
+	return extract_to_file(entry, stdout);
+}
+
+int read_dir(const char *path) {
 	DIR * dir;
 	FILE * t_fp;
 	struct dirent * dire;
@@ -518,11 +529,28 @@ int read_dir(char *path) {
 	return ret;
 }
 
-int extract_dir(char *path, char *out, bool allow_failure) {
-	read_dir(path);
+int read_input(const char *path) {
+	FILE *fp = NULL;
+	struct stat stat_buf;
+	if(stat(path, &stat_buf) == 0) {
+		if(S_ISDIR(stat_buf.st_mode)) {
+			return read_dir(path);
+		} else {
+			if ((fp = fopen(path, "rb")) != NULL)
+				return readHeader(fp);
+			return -1;
+		}
+	} else {
+		fprintf(stderr, "%s: %s\n", path, strerror(errno));
+		return -1;
+	}
+}
+
+int extract_all(const char *path, const char *out, bool allow_failure) {
+	read_input(path);
 	struct file_list *entry, *tmp = NULL;
 	HASH_ITER(hh, file_hh, entry, tmp) {
-		if((extract_to_file(entry, out) != 0) && !allow_failure) {
+		if((extract_to_dir(entry, out) != 0) && !allow_failure) {
 				return -1;
 		}
 	}
