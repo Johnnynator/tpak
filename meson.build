@@ -1,6 +1,6 @@
 project('tpak', 'c',
   version : '0.1',
-  default_options : ['warning_level=3'],
+  default_options : ['warning_level=3', 'c_std=gnu18'],
   license: 'UNLICENSE')
 
 conf = configuration_data()
@@ -21,7 +21,8 @@ conf.set('HAVE_LUAJIT', luajit_dep.found())
 editline_dep = dependency('libedit', required: false)
 conf.set('HAVE_READLINE', editline_dep.found())
 
-sources = [ 'main.c', 'tpak.c' ]
+lib_sources = [ 'tpak.c' ]
+exe_sources = [ 'main.c' ]
 
 if luajit_dep.found()
   luajit = find_program('luajit')
@@ -30,13 +31,25 @@ if luajit_dep.found()
 		      arguments : ['-b', '@INPUT@', '@OUTPUT@'])
 
   sc_h = lua_gen.process('sc.lua')
-  sources += ['lua.c', sc_h]
+  exe_sources += ['lua.c', sc_h]
 endif
 
 configure_file(output : 'config.h',
                configuration : conf)
 
-executable('tpak',
-           sources: sources,
-           dependencies : [zlib_dep, luajit_dep, editline_dep],
-           install : true)
+lib_tpak = library('tpak',
+ sources : lib_sources,
+ dependencies : [zlib_dep],
+ install : true,
+ soversion : '0')
+
+install_headers('tpak.h')
+
+tpak = executable('tpak',
+  sources : exe_sources,
+  dependencies : [zlib_dep, luajit_dep, editline_dep],
+  link_with : lib_tpak,
+  install : true)
+
+libtpak_dep = declare_dependency(link_with: lib_tpak,
+                                 dependencies : [zlib_dep])
