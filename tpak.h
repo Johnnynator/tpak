@@ -8,5 +8,5 @@ char * extract_file(const char * file, int32_t * size);
 int read_dir(const char *path);
 int read_input(const char *input);
 int print_file(const char *file);
-void print_all();
+void print_all(bool minimal);
 int tpak_free();

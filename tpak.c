@@ -335,11 +335,9 @@ int tpak_free() {
 	return 0;
 }
 
-void print_entry(struct file_list* entry) {
-	if(verbose)
-		printf("File: ");
-	printf("%s\n", entry->name);
+void print_entry(struct file_list* entry, bool minimal) {
 	if(verbose) {
+		printf("File: %s\n", entry->name);
 		printf("Data offset: 0x%.16lX\n", entry->file->header_end);
 		printf("Chunk Count: %i, Index: %i, File size: %i, Name offset: 0x%.8X\n",
 				entry->file->filetable[entry->index].chunk_count,
@@ -354,6 +352,12 @@ void print_entry(struct file_list* entry) {
 		                        entry->file->chunktable[*chunk_index + i].data_offset,
 		                        entry->file->chunktable[*chunk_index + i].unkwn);
 		}
+	} else if (minimal) {
+		printf("%s\n", entry->name);
+	} else {
+		// Max filesize is limited by max size of int32_t (or maybe unsigned(?)), so limit
+		// to length of 10 so we don't have to care about proper padding
+		printf("%.10i\t%s\n", entry->file->filetable[entry->index].file_size, entry->name);
 	}
 }
 
@@ -561,9 +565,9 @@ int extract_all(const char *path, const char *out, bool allow_failure) {
 	return 0;
 }
 
-void print_all() {
+void print_all(bool minimal) {
 	struct file_list *entry, *tmp = NULL;
 	HASH_ITER(hh, file_hh, entry, tmp) {
-		print_entry(entry);
+		print_entry(entry, minimal);
 	}
 }

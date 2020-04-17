@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
 		print_file(file);
 	} else if(list) {
 		read_input(input);
-		print_all();
+		print_all(true);
 	} else if (console) {
 #ifdef HAVE_LUAJIT
 		read_input(input);
