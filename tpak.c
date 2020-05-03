@@ -476,7 +476,7 @@ int extract_to_dir(struct file_list *entry, const char *out_dir) {
 char * extract_entry(struct file_list *entry) {
 	char* ret = malloc(entry->file->filetable[entry->index].file_size);
 	Bytef * tmp = (Bytef*)ret;
-	fprintf(stderr, "Extracting: %s\n", entry->name);
+	if(verbose) fprintf(stderr, "Extracting: %s\n", entry->name);
 	int *chunk_index = &entry->file->filetable[entry->index].chunk_index;
 	for(int i = 0; i < entry->file->filetable[entry->index].chunk_count; i++) {
 		struct file_chunk_entry * curr_chunk_entry = &entry->file->chunktable[*chunk_index + i];
